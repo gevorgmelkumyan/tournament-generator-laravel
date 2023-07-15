@@ -32,8 +32,5 @@ if [ ! -f "$ROOT_ENV_FILE" ]; then
         echo "DB_DATABASE=$DB_DATABASE"
         echo "DB_USERNAME=$DB_USERNAME"
         echo "DB_PASSWORD=$DB_PASSWORD"
-        printf "\n"
-        echo "REDIS_HOST=redis"
-        echo "REDIS_PORT=$REDIS_PORT"
     } >> .env
 fi
