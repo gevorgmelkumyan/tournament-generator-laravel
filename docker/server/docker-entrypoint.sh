@@ -18,17 +18,6 @@ else
 	echo "The database is ready and reachable"
 fi
 
-echo "Waiting for redis to be ready..."
-
-REDIS_MESSAGE=$(redis-cli -h redis ping)
-
-if [ "$REDIS_MESSAGE" = "PONG" ]; then
-    echo "Successfully connected to redis"
-else
-    echo "Failed to connect to redis"
-    exit 1
-fi
-
 php artisan migrate
 php artisan db:seed
 
