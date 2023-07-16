@@ -18,3 +18,6 @@ down:
 
 server:
 	docker compose -f docker/docker-compose.yml exec server bash
+
+mysql:
+	docker compose -f docker/docker-compose.yml exec mysql bash
