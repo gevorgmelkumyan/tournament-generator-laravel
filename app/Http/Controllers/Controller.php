@@ -37,37 +37,8 @@ class Controller extends BaseController {
     }
 
     public function runDivisionGames(Tournament $tournament): JsonResponse {
-        $teamsA = $tournament->teams()->where('division', 'A')->get();
-        $teamCount = count($teamsA);
-
-        for ($i = 0; $i < $teamCount; ++$i) {
-            for ($j = $i + 1; $j < $teamCount; ++$j) {
-
-                /** @var Game $game */
-                $game = Game::query()->create([
-                    'tournament_id' => $tournament->id,
-                    'type' => Game::TYPE_DIVISION,
-                ]);
-
-                $score1 = rand(0, 5);
-
-                do {
-                    $score2 = rand(0, 5);
-                } while ($score1 == $score2);
-
-                TeamGame::query()->create([
-                    'game_id' => $game->id,
-                    'team_id' => $teamsA[$i]->id,
-                    'score' => $score1,
-                ]);
-
-                TeamGame::query()->create([
-                    'game_id' => $game->id,
-                    'team_id' => $teamsA[$j]->id,
-                    'score' => $score2,
-                ]);
-            }
-        }
+        $this->runGamesForDivision($tournament);
+        $this->runGamesForDivision($tournament, 'B');
 
         return response()->json();
     }
@@ -124,5 +95,85 @@ class Controller extends BaseController {
         }
 
         return response()->json();
+    }
+
+    public function runSemiFinals(Tournament $tournament): JsonResponse {
+        $playoffWinners = TeamGame::query()
+            ->select('game_id', 'team_id', 'score')
+            ->join('games', 'team_games.game_id', '=', 'games.id')
+            ->where('games.tournament_id', $tournament->id)
+            ->where('games.type', Game::TYPE_PLAYOFFS)
+            ->whereRaw("(game_id, score) in (
+                select game_id, max(score)
+                from team_games
+                group by game_id
+            )")
+            ->orderByDesc('score')
+            ->get();
+
+        for ($i = 0; $i < 2; ++$i) {
+            /** @var Game $game */
+            $game = Game::query()->create([
+                'tournament_id' => $tournament->id,
+                'type' => Game::TYPE_SEMI_FINALS,
+            ]);
+
+            $score1 = rand(0, 5);
+
+            do {
+                $score2 = rand(0, 5);
+            } while ($score1 == $score2);
+
+            TeamGame::query()->create([
+                'game_id' => $game->id,
+                'team_id' => $playoffWinners[$i]->team_id,
+                'score' => $score1,
+            ]);
+
+            TeamGame::query()->create([
+                'game_id' => $game->id,
+                'team_id' => $playoffWinners[4 - ($i + 1)]->team_id,
+                'score' => $score2,
+            ]);
+        }
+
+        return response()->json();
+    }
+
+    protected function runGamesForDivision(Tournament $tournament, string $division = 'A'): void {
+        $teams = $tournament
+            ->teams()
+            ->where('division', $division)
+            ->get();
+        $teamCount = count($teams);
+
+        for ($i = 0; $i < $teamCount; ++$i) {
+            for ($j = $i + 1; $j < $teamCount; ++$j) {
+
+                /** @var Game $game */
+                $game = Game::query()->create([
+                    'tournament_id' => $tournament->id,
+                    'type' => Game::TYPE_DIVISION,
+                ]);
+
+                $score1 = rand(0, 5);
+
+                do {
+                    $score2 = rand(0, 5);
+                } while ($score1 == $score2);
+
+                TeamGame::query()->create([
+                    'game_id' => $game->id,
+                    'team_id' => $teams[$i]->id,
+                    'score' => $score1,
+                ]);
+
+                TeamGame::query()->create([
+                    'game_id' => $game->id,
+                    'team_id' => $teams[$j]->id,
+                    'score' => $score2,
+                ]);
+            }
+        }
     }
 }

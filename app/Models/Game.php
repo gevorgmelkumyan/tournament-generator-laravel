@@ -15,6 +15,8 @@ class Game extends Model {
 
     const TYPE_PLAYOFFS = 'playoffs';
 
+    const TYPE_SEMI_FINALS = 'semifinals';
+
     protected $fillable = [
         'tournament_id',
         'type',
