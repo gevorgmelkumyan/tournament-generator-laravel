@@ -10,6 +10,8 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller as BaseController;
+use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class Controller extends BaseController {
     use AuthorizesRequests, ValidatesRequests;
@@ -43,12 +45,73 @@ class Controller extends BaseController {
     }
 
     public function runDivisionGames(Tournament $tournament): JsonResponse {
-        $this->runGamesForDivision($tournament);
-        $this->runGamesForDivision($tournament, 'B');
+
+        DB::beginTransaction();
+
+        try {
+            $divisionATeamGames = $this->runGamesForDivision($tournament);
+            $divisionBTeamGames = $this->runGamesForDivision($tournament, 'B');
+
+            DB::commit();
+        } catch (Throwable $e) {
+            DB::rollBack();
+
+            return response()->json($e->getMessage(), 500);
+        }
+
+        $divisionATeamGames = collect($divisionATeamGames);
+        $divisionATeams = $tournament->teams()->where('division', 'A')->get();
+
+        $rowsA = [];
+
+        foreach ($divisionATeams as $key => $divisionATeam) {
+            $rowData = array_values($divisionATeamGames->where('team_id', $divisionATeam->id)->toArray());
+            array_splice($rowData, $key, 0, [['game_id' => $rowData[0]['game_id'], 'team_id' => $divisionATeam->id, 'score' => '-']]);
+            $rowsA[] = array_values($rowData);
+        }
+
+        $divisionBTeamGames = collect($divisionBTeamGames);
+        $divisionBTeams = $tournament->teams()->where('division', 'B')->get();
+
+        $rowsB = [];
+
+        foreach ($divisionBTeams as $key => $divisionBTeam) {
+            $rowData = array_values($divisionBTeamGames->where('team_id', $divisionBTeam->id)->toArray());
+            array_splice($rowData, $key, 0, [['game_id' => $rowData[0]['game_id'], 'team_id' => $divisionBTeam->id, 'score' => '-']]);
+            $rowsB[] = array_values($rowData);
+        }
 
         return response()->json([
-            'columns' => $tournament->teams()->where('division', 'B')->get(),
-            'rows' => [],
+            'divisionA' => [
+                'columns' => $divisionATeams,
+                'rows' => $rowsA,
+                'winners' => TeamGame::query()
+                    ->selectRaw('team_id, sum(score) total')
+                    ->join('games', 'game_id', '=', 'games.id')
+                    ->join('teams', 'team_id', '=', 'teams.id')
+                    ->where('type', Game::TYPE_DIVISION)
+                    ->where('games.tournament_id', $tournament->id)
+                    ->where('teams.division', 'A')
+                    ->groupBy('team_games.team_id')
+                    ->orderByDesc('total')
+                    ->limit(4)
+                    ->get(),
+            ],
+            'divisionB' => [
+                'columns' => $divisionBTeams,
+                'rows' => $rowsB,
+                'winners' => TeamGame::query()
+                    ->selectRaw('team_id, sum(score) total')
+                    ->join('games', 'game_id', '=', 'games.id')
+                    ->join('teams', 'team_id', '=', 'teams.id')
+                    ->where('type', Game::TYPE_DIVISION)
+                    ->where('games.tournament_id', $tournament->id)
+                    ->where('teams.division', 'B')
+                    ->groupBy('team_games.team_id')
+                    ->orderByDesc('total')
+                    ->limit(4)
+                    ->get(),
+            ],
         ]);
     }
 
@@ -210,12 +273,14 @@ class Controller extends BaseController {
         return response()->json($results);
     }
 
-    protected function runGamesForDivision(Tournament $tournament, string $division = 'A'): void {
+    protected function runGamesForDivision(Tournament $tournament, string $division = 'A'): array {
         $teams = $tournament
             ->teams()
             ->where('division', $division)
             ->get();
         $teamCount = count($teams);
+
+        $teamGames = [];
 
         for ($i = 0; $i < $teamCount; ++$i) {
             for ($j = $i + 1; $j < $teamCount; ++$j) {
@@ -232,18 +297,21 @@ class Controller extends BaseController {
                     $score2 = rand(0, 5);
                 } while ($score1 == $score2);
 
-                TeamGame::query()->create([
+                $teamGames[] = [
                     'game_id' => $game->id,
                     'team_id' => $teams[$i]->id,
                     'score' => $score1,
-                ]);
-
-                TeamGame::query()->create([
+                ];
+                $teamGames[] = [
                     'game_id' => $game->id,
                     'team_id' => $teams[$j]->id,
                     'score' => $score2,
-                ]);
+                ];
             }
         }
+
+        TeamGame::query()->insert($teamGames);
+
+        return $teamGames;
     }
 }
