@@ -46,7 +46,10 @@ class Controller extends BaseController {
         $this->runGamesForDivision($tournament);
         $this->runGamesForDivision($tournament, 'B');
 
-        return response()->json();
+        return response()->json([
+            'columns' => $tournament->teams()->where('division', 'B')->get(),
+            'rows' => [],
+        ]);
     }
 
     public function runPlayoffs(Tournament $tournament): JsonResponse {
