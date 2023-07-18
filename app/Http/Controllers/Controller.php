@@ -140,6 +140,67 @@ class Controller extends BaseController {
         return response()->json();
     }
 
+    public function runFinals(Tournament $tournament): JsonResponse {
+        $semifinalWinners = TeamGame::query()
+            ->select('game_id', 'team_id', 'score')
+            ->join('games', 'team_games.game_id', '=', 'games.id')
+            ->where('games.tournament_id', $tournament->id)
+            ->where('games.type', Game::TYPE_SEMI_FINALS)
+            ->whereRaw("(game_id, score) in (
+                select game_id, max(score)
+                from team_games
+                group by game_id
+            )")
+            ->get();
+
+        $semifinalLosers = TeamGame::query()
+            ->select('game_id', 'team_id', 'score')
+            ->join('games', 'team_games.game_id', '=', 'games.id')
+            ->where('games.tournament_id', $tournament->id)
+            ->where('games.type', Game::TYPE_SEMI_FINALS)
+            ->whereRaw("(game_id, score) in (
+                select game_id, min(score)
+                from team_games
+                group by game_id
+            )")
+            ->get();
+
+        foreach ([$semifinalWinners, $semifinalLosers] as $collection) {
+            /** @var Game $game */
+            $game = Game::query()->create([
+                'tournament_id' => $tournament->id,
+                'type' => Game::TYPE_FINALS,
+            ]);
+
+            $score1 = rand(0, 5);
+
+            do {
+                $score2 = rand(0, 5);
+            } while ($score1 == $score2);
+
+            TeamGame::query()->create([
+                'game_id' => $game->id,
+                'team_id' => $collection[0]->team_id,
+                'score' => $score1,
+            ]);
+
+            TeamGame::query()->create([
+                'game_id' => $game->id,
+                'team_id' => $collection[1]->team_id,
+                'score' => $score2,
+            ]);
+        }
+
+        $results = TeamGame::query()
+            ->select('game_id', 'team_id', 'score')
+            ->join('games', 'games.id', '=', 'team_games.game_id')
+            ->where('games.type', 'finals')
+            ->orderByRaw('game_id, score desc')
+            ->get();
+
+        return response()->json($results);
+    }
+
     protected function runGamesForDivision(Tournament $tournament, string $division = 'A'): void {
         $teams = $tournament
             ->teams()
