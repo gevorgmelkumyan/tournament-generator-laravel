@@ -17,23 +17,29 @@ class Controller extends BaseController {
     const NUMBER_OF_TEAMS = 15;
 
     public function createTournament(): JsonResponse {
+        /** @var Tournament $tournament */
         $tournament = Tournament::query()->create();
 
+        $divisionA = [];
+        $divisionB = [];
+
         for ($i = 0; $i < self::NUMBER_OF_TEAMS; ++$i) {
-            Team::query()->create([
+            $divisionA[] = [
                 'tournament_id' => $tournament->id,
                 'division' => 'A',
                 'name' => fake()->userName(),
-            ]);
+            ];
 
-            Team::query()->create([
+            $divisionB[] = [
                 'tournament_id' => $tournament->id,
                 'division' => 'B',
                 'name' => fake()->userName(),
-            ]);
+            ];
         }
 
-        return response()->json();
+        Team::query()->insert(array_merge($divisionA, $divisionB));
+
+        return response()->json(compact('divisionA', 'divisionB', 'tournament'));
     }
 
     public function runDivisionGames(Tournament $tournament): JsonResponse {
