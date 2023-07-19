@@ -11,6 +11,7 @@ use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Throwable;
 
 class Controller extends BaseController {
@@ -29,13 +30,17 @@ class Controller extends BaseController {
             $divisionA[] = [
                 'tournament_id' => $tournament->id,
                 'division' => 'A',
-                'name' => fake()->userName(),
+                'name' => strtoupper(substr(Str::random(20), rand(1, 10), 3)),
+                'created_at' => now(),
+                'updated_at' => now(),
             ];
 
             $divisionB[] = [
                 'tournament_id' => $tournament->id,
                 'division' => 'B',
-                'name' => fake()->userName(),
+                'name' => strtoupper(substr(Str::random(20), rand(1, 10), 3)),
+                'created_at' => now(),
+                'updated_at' => now(),
             ];
         }
 
@@ -159,12 +164,16 @@ class Controller extends BaseController {
                 'game_id' => $game->id,
                 'team_id' => $teamsA[$i]->team_id,
                 'score' => $score1,
+                'created_at' => now(),
+                'updated_at' => now(),
             ];
 
             $team2 = [
                 'game_id' => $game->id,
                 'team_id' => $teamsB[4 - ($i + 1)]->team_id,
                 'score' => $score2,
+                'created_at' => now(),
+                'updated_at' => now(),
             ];
 
             $playoffs[] = [
@@ -213,11 +222,15 @@ class Controller extends BaseController {
                     'game_id' => $game->id,
                     'team_id' => $playoffWinners[$i]->team_id,
                     'score' => $score1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ],
                 [
                     'game_id' => $game->id,
                     'team_id' => $playoffWinners[4 - ($i + 1)]->team_id,
                     'score' => $score2,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]
             ];
 
@@ -272,11 +285,15 @@ class Controller extends BaseController {
                     'game_id' => $game->id,
                     'team_id' => $collection[0]->team_id,
                     'score' => $score1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ],
                 [
                     'game_id' => $game->id,
                     'team_id' => $collection[1]->team_id,
                     'score' => $score2,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]
             ];
 
@@ -294,6 +311,12 @@ class Controller extends BaseController {
             ->get();
 
         return response()->json(compact('results', 'finals'));
+    }
+
+    public function destroy(Tournament $tournament): JsonResponse {
+        $tournament->deleteOrFail();
+
+        return response()->json();
     }
 
     protected function runGamesForDivision(Tournament $tournament, string $division = 'A'): array {
@@ -324,11 +347,15 @@ class Controller extends BaseController {
                     'game_id' => $game->id,
                     'team_id' => $teams[$i]->id,
                     'score' => $score1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ];
                 $teamGames[] = [
                     'game_id' => $game->id,
                     'team_id' => $teams[$j]->id,
                     'score' => $score2,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ];
             }
         }

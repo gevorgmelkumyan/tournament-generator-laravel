@@ -8,3 +8,4 @@ Route::post('run_division_games/{tournament}', [Controller::class, 'runDivisionG
 Route::post('run_playoffs/{tournament}', [Controller::class, 'runPlayoffs']);
 Route::post('run_semi_finals/{tournament}', [Controller::class, 'runSemiFinals']);
 Route::post('run_finals/{tournament}', [Controller::class, 'runFinals']);
+Route::delete('tournaments/{tournament}', [Controller::class, 'runFinals']);
