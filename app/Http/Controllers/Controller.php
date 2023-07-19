@@ -140,6 +140,8 @@ class Controller extends BaseController {
             ->limit(4)
             ->get();
 
+        $playoffs = [];
+
         for ($i = 0; $i < 4; ++$i) {
             /** @var Game $game */
             $game = Game::query()->create([
@@ -153,20 +155,30 @@ class Controller extends BaseController {
                 $score2 = rand(0, 5);
             } while ($score1 == $score2);
 
-            TeamGame::query()->create([
+            $team1 = [
                 'game_id' => $game->id,
                 'team_id' => $teamsA[$i]->team_id,
                 'score' => $score1,
-            ]);
+            ];
 
-            TeamGame::query()->create([
+            $team2 = [
                 'game_id' => $game->id,
                 'team_id' => $teamsB[4 - ($i + 1)]->team_id,
                 'score' => $score2,
+            ];
+
+            $playoffs[] = [
+                $team1,
+                $team2,
+            ];
+
+            TeamGame::query()->insert([
+                $team1,
+                $team2,
             ]);
         }
 
-        return response()->json();
+        return response()->json($playoffs);
     }
 
     public function runSemiFinals(Tournament $tournament): JsonResponse {
@@ -196,20 +208,25 @@ class Controller extends BaseController {
                 $score2 = rand(0, 5);
             } while ($score1 == $score2);
 
-            TeamGame::query()->create([
-                'game_id' => $game->id,
-                'team_id' => $playoffWinners[$i]->team_id,
-                'score' => $score1,
-            ]);
+            $data = [
+                [
+                    'game_id' => $game->id,
+                    'team_id' => $playoffWinners[$i]->team_id,
+                    'score' => $score1,
+                ],
+                [
+                    'game_id' => $game->id,
+                    'team_id' => $playoffWinners[4 - ($i + 1)]->team_id,
+                    'score' => $score2,
+                ]
+            ];
 
-            TeamGame::query()->create([
-                'game_id' => $game->id,
-                'team_id' => $playoffWinners[4 - ($i + 1)]->team_id,
-                'score' => $score2,
-            ]);
+            $semifinals[] = $data;
+
+            TeamGame::query()->insert($data);
         }
 
-        return response()->json();
+        return response()->json($semifinals);
     }
 
     public function runFinals(Tournament $tournament): JsonResponse {
@@ -250,27 +267,33 @@ class Controller extends BaseController {
                 $score2 = rand(0, 5);
             } while ($score1 == $score2);
 
-            TeamGame::query()->create([
-                'game_id' => $game->id,
-                'team_id' => $collection[0]->team_id,
-                'score' => $score1,
-            ]);
+            $data = [
+                [
+                    'game_id' => $game->id,
+                    'team_id' => $collection[0]->team_id,
+                    'score' => $score1,
+                ],
+                [
+                    'game_id' => $game->id,
+                    'team_id' => $collection[1]->team_id,
+                    'score' => $score2,
+                ]
+            ];
 
-            TeamGame::query()->create([
-                'game_id' => $game->id,
-                'team_id' => $collection[1]->team_id,
-                'score' => $score2,
-            ]);
+            $finals[] = $data;
+
+            TeamGame::query()->insert($data);
         }
 
         $results = TeamGame::query()
             ->select('game_id', 'team_id', 'score')
             ->join('games', 'games.id', '=', 'team_games.game_id')
-            ->where('games.type', 'finals')
+            ->where('games.type', Game::TYPE_FINALS)
+            ->where('tournament_id', $tournament->id)
             ->orderByRaw('game_id, score desc')
             ->get();
 
-        return response()->json($results);
+        return response()->json(compact('results', 'finals'));
     }
 
     protected function runGamesForDivision(Tournament $tournament, string $division = 'A'): array {
