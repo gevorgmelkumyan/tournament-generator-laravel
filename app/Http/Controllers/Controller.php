@@ -19,34 +19,8 @@ class Controller extends BaseController {
 
     const NUMBER_OF_TEAMS = 15;
 
-    public function createTournament(): JsonResponse {
-        /** @var Tournament $tournament */
-        $tournament = Tournament::query()->create();
-
-        $divisionA = [];
-        $divisionB = [];
-
-        for ($i = 0; $i < self::NUMBER_OF_TEAMS; ++$i) {
-            $divisionA[] = [
-                'tournament_id' => $tournament->id,
-                'division' => 'A',
-                'name' => strtoupper(substr(Str::random(20), rand(1, 10), 3)),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-
-            $divisionB[] = [
-                'tournament_id' => $tournament->id,
-                'division' => 'B',
-                'name' => strtoupper(substr(Str::random(20), rand(1, 10), 3)),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-        }
-
-        Team::query()->insert(array_merge($divisionA, $divisionB));
-
-        return response()->json(compact('divisionA', 'divisionB', 'tournament'));
+    public function respond(mixed $data = [], int $code = 200): JsonResponse {
+        return response()->json($data, $code);
     }
 
     public function runDivisionGames(Tournament $tournament): JsonResponse {
@@ -311,12 +285,6 @@ class Controller extends BaseController {
             ->get();
 
         return response()->json(compact('results', 'finals'));
-    }
-
-    public function destroy(Tournament $tournament): JsonResponse {
-        $tournament->deleteOrFail();
-
-        return response()->json();
     }
 
     protected function runGamesForDivision(Tournament $tournament, string $division = 'A'): array {
