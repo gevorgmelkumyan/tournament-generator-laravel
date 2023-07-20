@@ -33,17 +33,7 @@ class GameController extends Controller {
         $winners = [];
 
         foreach (['A', 'B'] as $division) {
-            $winners[$division] = TeamGame::query()
-                ->selectRaw('team_id, sum(score) total')
-                ->join('games', 'game_id', '=', 'games.id')
-                ->join('teams', 'team_id', '=', 'teams.id')
-                ->where('type', Game::TYPE_DIVISION)
-                ->where('games.tournament_id', $tournament->id)
-                ->where('teams.division', $division)
-                ->groupBy('team_games.team_id')
-                ->orderByDesc('total')
-                ->limit(4)
-                ->get();
+            $winners[$division] = $tournament->getDivisionGameWinners($division);
         }
 
         return response()->json([
@@ -105,13 +95,7 @@ class GameController extends Controller {
             return response()->json($e->getMessage(), 500);
         }
 
-        $results = TeamGame::query()
-            ->select('game_id', 'team_id', 'score')
-            ->join('games', 'games.id', '=', 'team_games.game_id')
-            ->where('games.type', Game::TYPE_FINALS)
-            ->where('tournament_id', $tournament->id)
-            ->orderByRaw('game_id, score desc')
-            ->get();
+        $results = $tournament->getFinalWinners();
 
         return response()->json(compact('results', 'finals'));
     }

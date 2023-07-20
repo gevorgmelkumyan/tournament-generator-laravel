@@ -61,4 +61,14 @@ class Tournament extends Model {
             )")
             ->get();
     }
+
+    public function getFinalWinners(): Collection|array {
+        return TeamGame::query()
+            ->select('game_id', 'team_id', 'score')
+            ->join('games', 'games.id', '=', 'team_games.game_id')
+            ->where('games.type', Game::TYPE_FINALS)
+            ->where('tournament_id', $this->id)
+            ->orderByRaw('game_id, score desc')
+            ->get();
+    }
 }
