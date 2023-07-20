@@ -1,11 +1,11 @@
 <?php
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\GameController;
+use App\Http\Controllers\TournamentController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('create_tournament', [Controller::class, 'createTournament']);
-Route::post('run_division_games/{tournament}', [Controller::class, 'runDivisionGames']);
-Route::post('run_playoffs/{tournament}', [Controller::class, 'runPlayoffs']);
-Route::post('run_semi_finals/{tournament}', [Controller::class, 'runSemiFinals']);
-Route::post('run_finals/{tournament}', [Controller::class, 'runFinals']);
-Route::delete('tournaments/{tournament}', [Controller::class, 'runFinals']);
+Route::apiResource('tournaments', TournamentController::class)->only('store', 'destroy');
+Route::post('tournaments/{tournament}/run_division_games', [GameController::class, 'runDivisionGames']);
+Route::post('tournaments/{tournament}/run_playoffs', [GameController::class, 'runPlayoffs']);
+Route::post('tournaments/{tournament}/run_semi_finals', [GameController::class, 'runSemiFinals']);
+Route::post('tournaments/{tournament}/run_finals', [GameController::class, 'runFinals']);

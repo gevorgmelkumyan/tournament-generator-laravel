@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Game;
 use App\Models\Tournament;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -15,11 +16,11 @@ return new class extends Migration {
                 ->cascadeOnUpdate()
                 ->cascadeOnDelete();
             $table->enum('type', [
-                'division',
-                'playoffs',
-                'semifinals',
-                'finals',
-            ])->default('division');
+                Game::TYPE_DIVISION,
+                Game::TYPE_PLAYOFFS,
+                Game::TYPE_SEMI_FINALS,
+                Game::TYPE_FINALS,
+            ])->default(Game::TYPE_DIVISION);
 
             $table->timestamps();
         });
