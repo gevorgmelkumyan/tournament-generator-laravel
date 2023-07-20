@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Interfaces\GameServiceInterface;
 use App\Interfaces\TeamGameServiceInterface;
 use App\Interfaces\TournamentGameServiceInterface;
-use App\Models\Game;
 use App\Models\TeamGame;
 use App\Models\Tournament;
 use Illuminate\Support\Collection;
@@ -46,17 +45,7 @@ class TournamentGameService implements TournamentGameServiceInterface {
         $winners = [];
 
         foreach (['A', 'B'] as $division) {
-            $winners[$division] = TeamGame::query()
-                ->selectRaw('team_id, sum(score) total')
-                ->join('games', 'game_id', '=', 'games.id')
-                ->join('teams', 'team_id', '=', 'teams.id')
-                ->where('type', Game::TYPE_DIVISION)
-                ->where('games.tournament_id', $tournament->id)
-                ->where('teams.division', $division)
-                ->groupBy('team_games.team_id')
-                ->orderByDesc('total')
-                ->limit(4)
-                ->get();
+            $winners[$division] = $tournament->getDivisionGameWinners($division);
         }
 
         $playoffs = [];
@@ -82,18 +71,7 @@ class TournamentGameService implements TournamentGameServiceInterface {
     }
 
     function generateSemiFinalGames(Tournament $tournament): array {
-        $playoffWinners = TeamGame::query()
-            ->select('game_id', 'team_id', 'score')
-            ->join('games', 'team_games.game_id', '=', 'games.id')
-            ->where('games.tournament_id', $tournament->id)
-            ->where('games.type', Game::TYPE_PLAYOFFS)
-            ->whereRaw("(game_id, score) in (
-                select game_id, max(score)
-                from team_games
-                group by game_id
-            )")
-            ->orderByDesc('score')
-            ->get();
+        $playoffWinners = $tournament->getPlayoffWinners();
 
         $semifinals = [];
 
@@ -119,29 +97,8 @@ class TournamentGameService implements TournamentGameServiceInterface {
     }
 
     function generateFinalGames(Tournament $tournament): array {
-        $semifinalWinners = TeamGame::query()
-            ->select('game_id', 'team_id', 'score')
-            ->join('games', 'team_games.game_id', '=', 'games.id')
-            ->where('games.tournament_id', $tournament->id)
-            ->where('games.type', Game::TYPE_SEMI_FINALS)
-            ->whereRaw("(game_id, score) in (
-                select game_id, max(score)
-                from team_games
-                group by game_id
-            )")
-            ->get();
-
-        $semifinalLosers = TeamGame::query()
-            ->select('game_id', 'team_id', 'score')
-            ->join('games', 'team_games.game_id', '=', 'games.id')
-            ->where('games.tournament_id', $tournament->id)
-            ->where('games.type', Game::TYPE_SEMI_FINALS)
-            ->whereRaw("(game_id, score) in (
-                select game_id, min(score)
-                from team_games
-                group by game_id
-            )")
-            ->get();
+        $semifinalWinners = $tournament->getSemiFinalTeams();
+        $semifinalLosers = $tournament->getSemiFinalTeams(false);
 
         $finals = [];
 
