@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Interfaces\GameServiceInterface;
 use App\Interfaces\TeamGameServiceInterface;
 use App\Interfaces\TournamentGameServiceInterface;
+use App\Models\Game;
 use App\Models\TeamGame;
 use App\Models\Tournament;
+use Illuminate\Support\Collection;
 
 class TournamentGameService implements TournamentGameServiceInterface {
 
@@ -15,11 +17,7 @@ class TournamentGameService implements TournamentGameServiceInterface {
         protected TeamGameServiceInterface $teamGameService
     ) {}
 
-    function generateDivisionGames(int $tournamentId, string $division = 'A'): array {
-
-        /** @var Tournament $tournament */
-        $tournament = Tournament::query()->findOrFail($tournamentId);
-
+    function generateDivisionGames(Tournament $tournament, string $division = 'A'): array {
         $teams = $tournament
             ->teams()
             ->where('division', $division)
@@ -30,7 +28,7 @@ class TournamentGameService implements TournamentGameServiceInterface {
 
         for ($i = 0; $i < $teamCount; ++$i) {
             for ($j = $i + 1; $j < $teamCount; ++$j) {
-                $game = $this->gameService->generateDivisionGame($tournamentId);
+                $game = $this->gameService->generateDivisionGame($tournament->id);
 
                 list($teamGameA, $teamGameB) = $this->teamGameService->generateTeamGame($game->id, $teams[$i]->id, $teams[$j]->id);
 
@@ -41,6 +39,146 @@ class TournamentGameService implements TournamentGameServiceInterface {
 
         TeamGame::query()->insert($teamGames);
 
-        return $teamGames;
+        return $this->formatTeamGames($teamGames, $teams);
+    }
+
+    function generatePlayoffGames(Tournament $tournament): array {
+        $winners = [];
+
+        foreach (['A', 'B'] as $division) {
+            $winners[$division] = TeamGame::query()
+                ->selectRaw('team_id, sum(score) total')
+                ->join('games', 'game_id', '=', 'games.id')
+                ->join('teams', 'team_id', '=', 'teams.id')
+                ->where('type', Game::TYPE_DIVISION)
+                ->where('games.tournament_id', $tournament->id)
+                ->where('teams.division', $division)
+                ->groupBy('team_games.team_id')
+                ->orderByDesc('total')
+                ->limit(4)
+                ->get();
+        }
+
+        $playoffs = [];
+
+        for ($i = 0; $i < 4; ++$i) {
+            $game = $this->gameService->generatePlayoffGame($tournament->id);
+
+            list($teamGameA, $teamGameB) = $this->teamGameService->generateTeamGame(
+                $game->id,
+                $winners['A'][$i]->team_id,
+                $winners['B'][4 - ($i + 1)]->team_id
+            );
+
+            $playoffs[] = [
+                $teamGameA,
+                $teamGameB
+            ];
+        }
+
+        TeamGame::query()->insert(array_merge(...$playoffs));
+
+        return $playoffs;
+    }
+
+    function generateSemiFinalGames(Tournament $tournament): array {
+        $playoffWinners = TeamGame::query()
+            ->select('game_id', 'team_id', 'score')
+            ->join('games', 'team_games.game_id', '=', 'games.id')
+            ->where('games.tournament_id', $tournament->id)
+            ->where('games.type', Game::TYPE_PLAYOFFS)
+            ->whereRaw("(game_id, score) in (
+                select game_id, max(score)
+                from team_games
+                group by game_id
+            )")
+            ->orderByDesc('score')
+            ->get();
+
+        $semifinals = [];
+
+        for ($i = 0; $i < 2; ++$i) {
+            $game = $this->gameService->generateSemiFinalGame($tournament->id);
+
+            list($teamGameA, $teamGameB) = $this->teamGameService->generateTeamGame(
+                $game->id,
+                $playoffWinners[$i]->team_id,
+                $playoffWinners[4 - ($i + 1)]->team_id
+            );
+
+            $semifinals[] = [
+                $teamGameA,
+                $teamGameB
+            ];
+        }
+
+
+        TeamGame::query()->insert(array_merge(...$semifinals));
+
+        return $semifinals;
+    }
+
+    function generateFinalGames(Tournament $tournament): array {
+        $semifinalWinners = TeamGame::query()
+            ->select('game_id', 'team_id', 'score')
+            ->join('games', 'team_games.game_id', '=', 'games.id')
+            ->where('games.tournament_id', $tournament->id)
+            ->where('games.type', Game::TYPE_SEMI_FINALS)
+            ->whereRaw("(game_id, score) in (
+                select game_id, max(score)
+                from team_games
+                group by game_id
+            )")
+            ->get();
+
+        $semifinalLosers = TeamGame::query()
+            ->select('game_id', 'team_id', 'score')
+            ->join('games', 'team_games.game_id', '=', 'games.id')
+            ->where('games.tournament_id', $tournament->id)
+            ->where('games.type', Game::TYPE_SEMI_FINALS)
+            ->whereRaw("(game_id, score) in (
+                select game_id, min(score)
+                from team_games
+                group by game_id
+            )")
+            ->get();
+
+        $finals = [];
+
+        foreach ([$semifinalWinners, $semifinalLosers] as $collection) {
+            $game = $this->gameService->generateFinalGame($tournament->id);
+
+            list($teamGameA, $teamGameB) = $this->teamGameService->generateTeamGame(
+                $game->id,
+                $collection[0]->team_id,
+                $collection[1]->team_id
+            );
+
+            $finals[] = [
+                $teamGameA,
+                $teamGameB,
+            ];
+        }
+
+        TeamGame::query()->insert(array_merge(...$finals));
+
+        return $finals;
+    }
+
+    protected function formatTeamGames(array $teamGames, Collection $teams): array {
+        $teamGames = collect($teamGames);
+
+        $rows = [];
+
+        foreach ($teams as $key => $divisionATeam) {
+            $rowData = array_values($teamGames->where('team_id', $divisionATeam->id)->toArray());
+            array_splice($rowData, $key, 0, [['game_id' => $rowData[0]['game_id'], 'team_id' => $divisionATeam->id, 'score' => '-']]);
+            $rows[] = array_values($rowData);
+        }
+
+        return [
+            'columns' => $teams,
+            'rows' => $rows,
+        ];
     }
 }
