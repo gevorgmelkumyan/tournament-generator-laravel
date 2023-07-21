@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 /**
  * @property Collection $teams
@@ -21,8 +22,8 @@ class Tournament extends Model {
         return $this->hasMany(Game::class);
     }
 
-    public function teamGames(): HasMany {
-        return $this->hasMany(TeamGame::class);
+    public function teamGames(): HasManyThrough {
+        return $this->hasManyThrough(TeamGame::class, Game::class);
     }
 
     public function getDivisionGameWinners(string $division = 'A'): Collection|array {
