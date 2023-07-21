@@ -17,6 +17,14 @@ class Tournament extends Model {
         return $this->hasMany(Team::class);
     }
 
+    public function games(): HasMany {
+        return $this->hasMany(Game::class);
+    }
+
+    public function teamGames(): HasMany {
+        return $this->hasMany(TeamGame::class);
+    }
+
     public function getDivisionGameWinners(string $division = 'A'): Collection|array {
         return TeamGame::query()
             ->selectRaw('team_id, sum(score) total')

@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 
 class TournamentService implements TournamentServiceInterface {
 
-    const NUMBER_OF_TEAMS = 15;
+    const NUMBER_OF_TEAMS = 10;
 
     function __construct(protected TeamServiceInterface $teamService) {}
 

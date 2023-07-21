@@ -21,3 +21,6 @@ server:
 
 mysql:
 	docker compose -f docker/docker-compose.yml exec mysql bash
+
+test:
+	docker compose -f docker/docker-compose.yml exec server php artisan test
