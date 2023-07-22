@@ -26,6 +26,21 @@ class Tournament extends Model {
         return $this->hasManyThrough(TeamGame::class, Game::class);
     }
 
+    public function canRunDivisionGames(): bool {
+        return $this->teams()->count();
+    }
+
+    public function canRunPlayoffs(): bool {
+        return $this->games()->where('type', Game::TYPE_DIVISION)->count();
+    }
+
+    public function canRunSemiFinals(): bool {
+        return $this->games()->where('type', Game::TYPE_PLAYOFFS)->count();
+    }
+    public function canRunFinals(): bool {
+        return $this->games()->where('type', Game::TYPE_SEMI_FINALS)->count();
+    }
+
     public function getDivisionGameWinners(string $division = 'A'): Collection|array {
         return TeamGame::query()
             ->selectRaw('team_id, sum(score) total')
