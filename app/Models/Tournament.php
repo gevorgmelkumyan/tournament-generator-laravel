@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 /**
  * @property Collection $teams
@@ -15,6 +16,29 @@ class Tournament extends Model {
 
     public function teams(): HasMany {
         return $this->hasMany(Team::class);
+    }
+
+    public function games(): HasMany {
+        return $this->hasMany(Game::class);
+    }
+
+    public function teamGames(): HasManyThrough {
+        return $this->hasManyThrough(TeamGame::class, Game::class);
+    }
+
+    public function canRunDivisionGames(): bool {
+        return $this->teams()->count();
+    }
+
+    public function canRunPlayoffs(): bool {
+        return $this->games()->where('type', Game::TYPE_DIVISION)->count();
+    }
+
+    public function canRunSemiFinals(): bool {
+        return $this->games()->where('type', Game::TYPE_PLAYOFFS)->count();
+    }
+    public function canRunFinals(): bool {
+        return $this->games()->where('type', Game::TYPE_SEMI_FINALS)->count();
     }
 
     public function getDivisionGameWinners(string $division = 'A'): Collection|array {

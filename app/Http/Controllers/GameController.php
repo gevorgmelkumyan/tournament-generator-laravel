@@ -2,13 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\ResponseMessage;
 use App\Interfaces\TournamentGameServiceInterface;
-use App\Models\Game;
-use App\Models\Team;
-use App\Models\TeamGame;
 use App\Models\Tournament;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -17,6 +14,10 @@ class GameController extends Controller {
     public function __construct(protected TournamentGameServiceInterface $tournamentGameService) {}
 
     public function runDivisionGames(Tournament $tournament): JsonResponse {
+        if (!$tournament->canRunDivisionGames()) {
+            return $this->respond(['message' => ResponseMessage::ERROR_CANT_RUN_DIVISION_GAMES], 400);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -27,7 +28,7 @@ class GameController extends Controller {
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json($e->getMessage(), 500);
+            return $this->respond(['message' => ResponseMessage::ERROR_SOMETHING_WENT_WRONG], 500);
         }
 
         $winners = [];
@@ -36,7 +37,7 @@ class GameController extends Controller {
             $winners[$division] = $tournament->getDivisionGameWinners($division);
         }
 
-        return response()->json([
+        return $this->respond([
             'divisionA' => [
                 'columns' => $divisionAData['columns'],
                 'rows' => $divisionAData['rows'],
@@ -51,6 +52,10 @@ class GameController extends Controller {
     }
 
     public function runPlayoffs(Tournament $tournament): JsonResponse {
+        if (!$tournament->canRunPlayoffs()) {
+            return $this->respond(['message' => ResponseMessage::ERROR_CANT_RUN_PLAYOFFS], 400);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -60,13 +65,17 @@ class GameController extends Controller {
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json($e->getMessage(), 500);
+            return $this->respond(['message' => ResponseMessage::ERROR_SOMETHING_WENT_WRONG], 500);
         }
 
-        return response()->json($playoffs);
+        return $this->respond($playoffs);
     }
 
     public function runSemiFinals(Tournament $tournament): JsonResponse {
+        if (!$tournament->canRunSemiFinals()) {
+            return $this->respond(['message' => ResponseMessage::ERROR_CANT_RUN_SEMI_FINALS], 400);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -76,13 +85,17 @@ class GameController extends Controller {
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json($e->getMessage(), 500);
+            return $this->respond(['message' => ResponseMessage::ERROR_SOMETHING_WENT_WRONG], 500);
         }
 
-        return response()->json($semifinals);
+        return $this->respond($semifinals);
     }
 
     public function runFinals(Tournament $tournament): JsonResponse {
+        if (!$tournament->canRunFinals()) {
+            return $this->respond(['message' => ResponseMessage::ERROR_CANT_RUN_FINALS], 400);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -92,11 +105,11 @@ class GameController extends Controller {
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json($e->getMessage(), 500);
+            return $this->respond(['message' => ResponseMessage::ERROR_SOMETHING_WENT_WRONG], 500);
         }
 
         $results = $tournament->getFinalWinners();
 
-        return response()->json(compact('results', 'finals'));
+        return $this->respond(compact('results', 'finals'));
     }
 }
